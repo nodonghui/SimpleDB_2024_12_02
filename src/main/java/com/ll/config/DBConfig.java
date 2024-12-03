@@ -11,7 +11,7 @@ import java.util.Properties;
 
 @Getter
 @Setter
-class DBConfig {
+public class DBConfig {
 
     private static DBConfig instance;
 
@@ -19,6 +19,7 @@ class DBConfig {
     private String username;
     private String password;
     private String dbname;
+    private String portNum;
 
     private  DBConfig() {
         try (InputStream input=new FileInputStream("config.properties")) {
@@ -28,6 +29,7 @@ class DBConfig {
             this.username=prop.getProperty("jdbc.username");
             this.password=prop.getProperty("jdbc.password");
             this.dbname=prop.getProperty("jdbc.dbname");
+            this.portNum=prop.getProperty("jdbc.portNum");
         } catch (IOException e) {
             e.printStackTrace();
         }
