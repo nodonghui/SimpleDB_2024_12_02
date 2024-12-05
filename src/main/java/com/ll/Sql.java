@@ -49,6 +49,7 @@ public class Sql {
     }
 
     public Sql append(String query,int id1,int id2,int id3,int id4) {
+        //where in 경우
         sb.append(query);
         sb.append("\n");
         bindingValue.setValue(query,id1,id2,id3,id4);
@@ -59,6 +60,39 @@ public class Sql {
         sb.append(query);
         sb.append("\n");
         bindingValue.setValue(query,id1,id2,id3);
+        return new Sql(simpleDB,sb,bindingValue);
+    }
+
+    public Sql append(String query,int id1,int id2) {
+        sb.append(query);
+        sb.append("\n");
+        bindingValue.setValue(query,id1,id2);
+        return new Sql(simpleDB,sb,bindingValue);
+    }
+
+    public Sql appendIn(String query,long id1,long id2,long id3) {
+        String placeholders = String.join(", ", java.util.Collections.nCopies(3, "?"));
+        String modifyQuery= query.replace("(?)", "(" + placeholders + ")");
+        sb.append(modifyQuery);
+        sb.append("\n");
+        bindingValue.setValue(query,id1,id2,id3);
+        return new Sql(simpleDB,sb,bindingValue);
+    }
+
+    public Sql appendIn(String query,Long[] ids) {
+
+        String placeholders = String.join(", ", java.util.Collections.nCopies(ids.length, "?"));
+        String modifyQuery="";
+        if(query.startsWith("ORDER BY FIELD")) {
+            modifyQuery= query.replace("(id, ?)", "(id," + placeholders + ")");
+        }
+        if(query.startsWith("WHERE")) {
+            modifyQuery= query.replace("(?)", "(" + placeholders + ")");
+        }
+
+        sb.append(modifyQuery);
+        sb.append("\n");
+        bindingValue.setValue(query,ids);
         return new Sql(simpleDB,sb,bindingValue);
     }
 
@@ -90,18 +124,30 @@ public class Sql {
 
     void addParameter(PreparedStatement stmt) throws SQLException {
         int index=1;
+        int start=0;
         //파라미터가 입력 되지 않은 경우 null로 초기화 되어있음
         String title= bindingValue.getTitle();
         String body= bindingValue.getBody();
         Boolean isBlind=bindingValue.getIsBlind();
-        List<Integer> updateId=bindingValue.getUpdateId();
-        if(title !=null) { stmt.setString(index,title); index+=1;}
-        if(body !=null) { stmt.setString(index,body); index+=1;}
-        if(isBlind !=null) { stmt.setBoolean(index,isBlind); index+=1;}
-        for(int id : updateId) {
-            stmt.setInt(index,id);
-            index+=1;
+        List<Long> updateId=bindingValue.getUpdateId();
+        for(String order : bindingValue.getBindingOrder()) {
+            if(order.equals("title")) { stmt.setString(index,title); index+=1;}
+            if(order.equals("body")) { stmt.setString(index,body); index+=1;}
+            if(order.equals("isBlind")) { stmt.setBoolean(index,isBlind); index+=1;}
+            if(order.startsWith("updateId")) {
+                //updateId&4 이런식으로 이번 순서에 추가될 개수 기록되어있다.
+                int offset=Integer.parseInt(order.split("&")[1]);
+                for(int i=start;i<start+offset;i++) {
+                    long id=updateId.get(i);
+                    stmt.setLong(index,id);
+                    index+=1;
+                }
+                start+=offset;
+            }
+
         }
+
+
 
     }
 
@@ -205,13 +251,16 @@ public class Sql {
         return time;
     }
 
+
+
     public Long selectLong() {
-        Long id=0l;
+        long id=0;
 
         try{
             stmt = simpleDB.getConnection().prepareStatement(sb.toString());
+            addParameter(stmt);
             ResultSet resultSet=stmt.executeQuery();
-            while (resultSet.next()) {
+            while(resultSet.next()) {
                 id=resultSet.getLong(1);
             }
 
@@ -254,5 +303,23 @@ public class Sql {
         }
 
         return isblind;
+    }
+
+    public List<Long> selectLongs() {
+        List<Long> ids=new ArrayList<>();
+
+        try{
+            stmt = simpleDB.getConnection().prepareStatement(sb.toString());
+            addParameter(stmt);
+            ResultSet resultSet=stmt.executeQuery();
+            while(resultSet.next()) {
+                ids.add(resultSet.getLong(1));
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return ids;
     }
 }

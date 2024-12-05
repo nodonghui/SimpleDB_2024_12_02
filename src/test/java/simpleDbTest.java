@@ -301,4 +301,66 @@ public class simpleDbTest {
 
         assertThat(isBlind).isEqualTo(false);
     }
+
+    @Test
+    @DisplayName("select, LIKE 사용법")
+    public void t012() {
+        Sql sql = simpleDBProxy.genSql();
+        /*
+        == rawSql ==
+        SELECT COUNT(*)
+        FROM article
+        WHERE id BETWEEN '1' AND '3'
+        AND title LIKE CONCAT('%', '제목' '%')
+        */
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article")
+                .append("WHERE id BETWEEN ? AND ?", 1, 3)
+                .append("AND title LIKE CONCAT('%', ? '%')", "제목");
+
+        long count = sql.selectLong();
+
+        assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("appendIn")
+    public void t013() {
+        Sql sql = simpleDBProxy.genSql();
+        /*
+        == rawSql ==
+        SELECT COUNT(*)
+        FROM article
+        WHERE id IN ('1', '2', '3')
+        */
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article")
+                .appendIn("WHERE id IN (?)", 1, 2, 3);
+
+        long count = sql.selectLong();
+
+        assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("selectLongs, ORDER BY FIELD 사용법")
+    public void t014() {
+        Long[] ids = new Long[]{2L, 1L, 3L};
+
+        Sql sql = simpleDBProxy.genSql();
+        /*
+        SELECT id
+        FROM article
+        WHERE id IN ('2', '3', '1')
+        ORDER BY FIELD (id, '2', '3', '1')
+        */
+        sql.append("SELECT id")
+                .append("FROM article")
+                .appendIn("WHERE id IN (?)", ids)
+                .appendIn("ORDER BY FIELD (id, ?)", ids);
+
+        List<Long> foundIds = sql.selectLongs();
+
+        assertThat(foundIds).isEqualTo(Arrays.stream(ids).toList());
+    }
 }
