@@ -2,6 +2,8 @@ package com.ll;
 
 import com.ll.simpleDb.SimpleDB;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 public class Sql {
 
 
@@ -19,6 +22,7 @@ public class Sql {
     StringBuilder sb;
     PreparedStatement stmt;
     BindingValue bindingValue;
+
 
     public Sql(SimpleDB simpleDB,StringBuilder sb,BindingValue bindingValue) {
         this.sb=sb;
@@ -76,6 +80,15 @@ public class Sql {
         sb.append(modifyQuery);
         sb.append("\n");
         bindingValue.setValue(query,id1,id2,id3);
+        return new Sql(simpleDB,sb,bindingValue);
+    }
+
+    public Sql appendIn(String query,String value1,String value2) {
+        String placeholders = String.join(", ", java.util.Collections.nCopies(2, "?"));
+        String modifyQuery= query.replace("?", placeholders);
+        sb.append(modifyQuery);
+        sb.append("\n");
+        bindingValue.setValue(query,value1,value2);
         return new Sql(simpleDB,sb,bindingValue);
     }
 
@@ -233,6 +246,110 @@ public class Sql {
         return row;
 
     }
+
+    public <T> List<T> selectRows(Class<T> clazz) {
+        List<T> rows=new ArrayList<>();
+        List<Class<?>> parameterTypes=new ArrayList<>();
+        List<Object> parameterValues=new ArrayList<>();
+
+        int index=1;
+        try{
+
+            stmt = simpleDB.getConnection().prepareStatement(sb.toString());
+            ResultSet resultSet=stmt.executeQuery();
+            Field[] fields = clazz.getDeclaredFields();
+            while (resultSet.next()) {
+
+                createInstanceParameter(parameterTypes,parameterValues,fields,resultSet);
+
+                Constructor<T> constructor = clazz.getDeclaredConstructor(parameterTypes.toArray(new Class<?>[0]));
+                T instance = constructor.newInstance(parameterValues.toArray(new Object[0]));
+                rows.add(instance);
+
+                parameterTypes.clear();
+                parameterValues.clear();
+
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch ( Exception e) {
+            throw new RuntimeException("Error creating instance for: " + clazz.getName(), e);
+        }
+
+
+        return rows;
+
+    }
+
+    public <T> T selectRow(Class<T> clazz) {
+
+        T row=null;
+        List<Class<?>> parameterTypes=new ArrayList<>();
+        List<Object> parameterValues=new ArrayList<>();
+
+
+        try{
+
+            stmt = simpleDB.getConnection().prepareStatement(sb.toString());
+            ResultSet resultSet=stmt.executeQuery();
+
+            Field[] fields = clazz.getDeclaredFields();
+            while (resultSet.next()) {
+
+                createInstanceParameter(parameterTypes,parameterValues,fields,resultSet);
+
+                Constructor<T> constructor = clazz.getDeclaredConstructor(parameterTypes.toArray(new Class<?>[0]));
+                row = constructor.newInstance(parameterValues.toArray(new Object[0]));
+
+
+                parameterTypes.clear();
+                parameterValues.clear();
+
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch ( Exception e) {
+            throw new RuntimeException("Error creating instance for: " + clazz.getName(), e);
+        }
+
+
+        return row;
+
+    }
+
+    void createInstanceParameter(List<Class<?>> parameterTypes,List<Object> parameterValues,Field[] fields,ResultSet resultSet) throws SQLException {
+        int index=1;
+        for (Field field : fields) {
+            Class<?> clazz=field.getType();
+            if(clazz==Long.class) {
+                parameterTypes.add(clazz);
+                parameterValues.add(resultSet.getLong(index));
+                index+=1;
+            }
+            if(clazz==String.class) {
+                parameterTypes.add(clazz);
+                parameterValues.add(resultSet.getString(index));
+                index+=1;
+            }
+            if(clazz==LocalDateTime.class) {
+                parameterTypes.add(clazz);
+                parameterValues.add(resultSet.getObject(index,LocalDateTime.class));
+                index+=1;
+            }
+            if(clazz==Boolean.class) {
+                parameterTypes.add(clazz);
+                parameterValues.add(resultSet.getBoolean(index));
+                index+=1;
+            }
+
+        }
+
+
+    }
+
+
 
     public LocalDateTime selectDatetime() {
         LocalDateTime time=LocalDateTime.now();

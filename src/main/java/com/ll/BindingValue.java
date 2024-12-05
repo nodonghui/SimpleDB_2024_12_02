@@ -40,6 +40,16 @@ public class BindingValue {
         }
     }
 
+    public void setValue(String query,String value1,String value2) {
+        //paring ", title = ?"
+        this.title=value1;
+        bindingOrder.add("title");
+
+        this.body=value2;
+        bindingOrder.add("body");
+
+    }
+
     public void setValue(String query,Boolean value) {
         //paring ", title = ?"
         String key=parseQuery(query);

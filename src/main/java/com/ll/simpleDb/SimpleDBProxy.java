@@ -53,6 +53,33 @@ public class SimpleDBProxy implements Database{
         return simpleDB.genSql();
     }
 
+    public void startTransaction() {
+        if (!isConnected) {
+            System.out.println("DatabaseProxy: 연결이 필요합니다. 자동으로 연결합니다.");
+            connect();
+        }
+
+        simpleDB.startTransaction();
+    }
+
+    public void rollback() {
+        if (!isConnected) {
+            System.out.println("DatabaseProxy: 연결이 필요합니다. 자동으로 연결합니다.");
+            connect();
+        }
+
+        simpleDB.rollback();
+    }
+
+    public void commit() {
+        if (!isConnected) {
+            System.out.println("DatabaseProxy: 연결이 필요합니다. 자동으로 연결합니다.");
+            connect();
+        }
+
+        simpleDB.commit();
+    }
+
 
     public void disconnect() {
         if (isConnected && simpleDB != null) {
